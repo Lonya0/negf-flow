@@ -1,0 +1,85 @@
+import os.path
+from typing import List
+from dflow.python import OP, OPIO, OPIOSign, Artifact, BigParameter
+from pathlib import Path
+from ase.io import read, write
+from ase import Atoms
+import numpy as np
+import dpdata
+import math
+
+class BuildSupercell(OP):
+    def __init__(self):
+        pass
+
+    @classmethod
+    def get_input_sign(cls):
+        return OPIOSign({
+            "init_confs": Artifact(List[Path]),
+            "negf_config": dict
+        })
+
+    @classmethod
+    def get_output_sign(cls):
+        return OPIOSign({
+            "stacked_systems": Artifact(List[Path]),
+            "system_infos": BigParameter(List[dict])
+        })
+
+    @OP.exec_sign_check
+    def execute(
+            self,
+            op_in: OPIO,
+    ) -> OPIO:
+
+        def stack(init_system, _output_file, negf_config):
+            # di = direction index, sm = super cell matrix
+            if negf_config['direction'] == 'x': di, sm = 0, np.array([1, 0, 0])
+            elif negf_config['direction'] == 'y': di, sm = 1, np.array([0, 1, 0])
+            elif negf_config['direction'] == 'z': di, sm = 2, np.array([0, 0, 1])
+            else: raise f"direction {negf_config['direction']} is not legal!"
+
+            # sort in direction
+            directional_coords = init_system.positions[:, di]
+            sorted_indices = np.argsort(directional_coords)
+            sorted_system = Atoms(
+                symbols=init_system.symbols[sorted_indices],
+                positions=init_system.positions[sorted_indices],
+                cell=init_system.cell,
+                pbc=init_system.pbc
+            )
+
+            # build supercell
+            repeat = sum(negf_config['supercell'].values())
+            supercell = sorted_system.repeat((1, 1, 1) + (repeat - 1) * sm)
+
+            # switch 1-2 cell
+            pos = supercell.get_positions()
+            atom_number = len(init_system)
+            cell_c = sorted_system.cell[di, di]
+            new_pos = np.vstack([pos[:atom_number] + sm * cell_c,
+                                 pos[atom_number:2 * atom_number] - sm * cell_c, 
+                                 pos[2 * atom_number:]])
+            supercell.set_positions(new_pos)
+
+            write(_output_file, supercell, format='vasp')
+            return negf_config['supercell']['lead_L'], negf_config['supercell']['device'], negf_config['supercell']['lead_R']
+
+        out_systems = []
+        system_infos = []
+
+        for conf in op_in["init_confs"]:
+            with open(conf, "r") as f:
+                system = read(f)
+            output_file = 'stacked_' + os.path.basename(conf)
+            il, id, ir = stack(system, output_file, op_in['negf_config'])
+            out_systems.append(Path.cwd() / output_file)
+            system_infos.append({'atom_number': len(system), 
+                                 'atom_index': list(np.array([il, il + id, il + id + ir]) * system.get_number_of_atoms())})
+            
+        op_out = OPIO({
+            "stacked_systems": out_systems,
+            "system_infos": system_infos
+        })
+
+        return op_out

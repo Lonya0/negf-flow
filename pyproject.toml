@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+negfflow = "negfflow.__main__:main"
+
+[project]
+name = "negf-flow"
+version = "0.1.0"
+description = "Your package description"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy",
+    "dpdata",
+    "pydflow>=1.6.57",
+    "dargs>=0.4.10",
+    "scipy",
+    "packaging",
+    "fpop==0.0.7",
+    "dpgui",
+    "cp2kdata",
+    "ase",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/your-package"
+Repository = "https://github.com/yourusername/your-package"
+Documentation = "https://github.com/yourusername/your-package#readme"
+
