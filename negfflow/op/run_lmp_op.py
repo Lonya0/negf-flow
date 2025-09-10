@@ -1,5 +1,5 @@
-from dflow.python import OP, OPIO, OPIOSign, Artifact
 from pathlib import Path
+from dflow.python import OP, OPIO, OPIOSign, Artifact
 
 class run_lmp_op(OP):
     def __init__(self):
@@ -25,9 +25,9 @@ class run_lmp_op(OP):
             self,
             op_in: OPIO,
     ) -> OPIO:
-        with open(op_in["foo"], "r") as f:
+        with open(op_in["foo"], "r", encoding="utf-8") as f:
             content = f.read()
-        with open("bar.txt", "w") as f:
+        with open("bar.txt", "w", encoding="utf-8") as f:
             f.write(content * op_in["num"])
 
         op_out = OPIO({

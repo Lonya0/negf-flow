@@ -1,8 +1,7 @@
-from dflow.python import OP, OPIOSign, OPIO
 import os.path
 from typing import List
-from dflow.python import OP, OPIO, OPIOSign, Artifact, BigParameter
 from pathlib import Path
+from dflow.python import OP, OPIO, OPIOSign, Artifact, BigParameter
 from ase.io import read, write
 from ase.data import atomic_numbers, atomic_masses
 
@@ -42,7 +41,7 @@ class PrepLammps(OP):
 
         for conf, system_info in zip(confs, system_infos):
             try:
-                with open(conf, "r") as f:
+                with open(conf, "r", encoding="utf-8") as f:
                     system = read(f)
             except Exception as e:
                 print(f"读取VASP文件失败: {e}")
@@ -81,7 +80,7 @@ class PrepLammps(OP):
                     ensemble_block = _ensemble_block(relax_config['ensemble'], temp, pres, relax_config['dt'], relax_config['nsteps'])
 
                     in_lammps_path = os.path.join(task_dir, "in.lammps")
-                    with open(in_lammps_path, "w") as f:
+                    with open(in_lammps_path, "w", encoding="utf-8") as f:
                         f.write(f"""# Auto-generated
 units           metal
 atom_style      atomic
@@ -118,8 +117,7 @@ write_data      relaxed.data
 
         return op_out
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
         return
 
 def _build_specorder(system):
@@ -132,8 +130,8 @@ def _build_specorder(system):
 def _mass_lines(specorder):
     lines = []
     for i, sym in enumerate(specorder, start=1):
-        Z = atomic_numbers[sym]
-        m = float(atomic_masses[Z])
+        z = atomic_numbers[sym]
+        m = float(atomic_masses[z])
         lines.append(f"mass {i} {m:.6f}  # {sym}")
     return "\n".join(lines)
 
@@ -163,7 +161,7 @@ def _ensemble_block(ensemble, T, P, dt, nsteps):
             "min_style       cg\n"
             f"minimize        1e-6 1e-8 1000 {nsteps}"
         )
-    elif ensemble.lower() == "nvt":
+    if ensemble.lower() == "nvt":
         return (
             f"velocity        mobile create {T} 12345 mom yes rot yes dist gaussian\n"
             f"fix             1 mobile nvt temp {T} {T} 0.1\n"
@@ -171,7 +169,7 @@ def _ensemble_block(ensemble, T, P, dt, nsteps):
             f"timestep        {dt}\n"
             f"run             {nsteps}"
         )
-    elif ensemble.lower() == "npt":
+    if ensemble.lower() == "npt":
         return (
             f"velocity        mobile create {T} 12345 mom yes rot yes dist gaussian\n"
             f"fix             1 mobile npt temp {T} {T} 0.1 iso {P:.6f} {P:.6f} 1.0 dilate mobile\n"
@@ -179,7 +177,7 @@ def _ensemble_block(ensemble, T, P, dt, nsteps):
             f"timestep        {dt}\n"
             f"run             {nsteps}"
         )
-    elif ensemble.lower() == "nve":
+    if ensemble.lower() == "nve":
         return (
             f"velocity        mobile create {T} 12345 mom yes rot yes dist gaussian\n"
             "fix             1 mobile nve\n"
@@ -187,5 +185,4 @@ def _ensemble_block(ensemble, T, P, dt, nsteps):
             f"timestep        {dt}\n"
             f"run             {nsteps}"
         )
-    else:
-        raise ValueError("ensemble 必须是 'min'/'nvt'/'npt'/'nve' 之一")
+    raise ValueError("ensemble 必须是 'min'/'nvt'/'npt'/'nve' 之一")

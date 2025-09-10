@@ -2,13 +2,9 @@ import os
 from copy import (
     deepcopy,
 )
-from pathlib import (
-    Path,
-)
 from typing import (
     List,
     Optional,
-    Set,
     Type,
 )
 from dflow import (
@@ -20,20 +16,13 @@ from dflow import (
     Outputs,
     Step,
     Steps,
-    Workflow,
     argo_len,
-    argo_range,
-    argo_sequence,
-    download_artifact,
-    upload_artifact,
+    argo_sequence
 )
 from dflow.python import (
     OP,
-    OPIO,
-    Artifact,
-    OPIOSign,
     PythonOPTemplate,
-    Slices,
+    Slices
 )
 from negfflow.utils.executor import init_executor
 

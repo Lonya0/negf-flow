@@ -1,12 +1,10 @@
 import os.path
 from typing import List
-from dflow.python import OP, OPIO, OPIOSign, Artifact, BigParameter
 from pathlib import Path
+from dflow.python import OP, OPIO, OPIOSign, Artifact, BigParameter
 from ase.io import read, write
 from ase import Atoms
 import numpy as np
-import dpdata
-import math
 
 class BuildSupercell(OP):
     def __init__(self):
@@ -34,10 +32,10 @@ class BuildSupercell(OP):
 
         def stack(init_system, _output_file, negf_config):
             # di = direction index, sm = super cell matrix
-            if negf_config['direction'] == 'x': di, sm = 0, np.array([1, 0, 0])
-            elif negf_config['direction'] == 'y': di, sm = 1, np.array([0, 1, 0])
-            elif negf_config['direction'] == 'z': di, sm = 2, np.array([0, 0, 1])
-            else: raise f"direction {negf_config['direction']} is not legal!"
+            if negf_config['direction'] == 'x': (di, sm) = (0, np.array([1, 0, 0]))
+            elif negf_config['direction'] == 'y': (di, sm) = (1, np.array([0, 1, 0]))
+            elif negf_config['direction'] == 'z': (di, sm) = (2, np.array([0, 0, 1]))
+            else: raise TypeError(f"direction {negf_config['direction']} is not legal!")
 
             # sort in direction
             directional_coords = init_system.positions[:, di]
@@ -63,20 +61,23 @@ class BuildSupercell(OP):
             supercell.set_positions(new_pos)
 
             write(_output_file, supercell, format='vasp')
-            return negf_config['supercell']['lead_L'], negf_config['supercell']['device'], negf_config['supercell']['lead_R']
+            return (negf_config['supercell']['lead_L'], 
+                    negf_config['supercell']['device'], 
+                    negf_config['supercell']['lead_R'])
 
         out_systems = []
         system_infos = []
 
         for conf in op_in["init_confs"]:
-            with open(conf, "r") as f:
+            with open(conf, "r", encoding="utf-8") as f:
                 system = read(f)
             output_file = 'stacked_' + os.path.basename(conf)
-            il, id, ir = stack(system, output_file, op_in['negf_config'])
+            ll, dd, rr = stack(system, output_file, op_in['negf_config'])
             out_systems.append(Path.cwd() / output_file)
-            system_infos.append({'atom_number': len(system), 
-                                 'atom_index': list(np.array([il, il + id, il + id + ir]) * system.get_number_of_atoms())})
-            
+            system_infos.append({'atom_number': len(system),
+                                 'atom_index': list(np.array([ll, ll + dd, ll + dd + rr]) * 
+                                                    system.get_number_of_atoms())})
+
         op_out = OPIO({
             "stacked_systems": out_systems,
             "system_infos": system_infos

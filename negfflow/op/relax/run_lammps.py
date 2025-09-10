@@ -1,10 +1,8 @@
 import logging
-from dflow.python import OP, OPIOSign, OPIO
-
+from pathlib import Path
 import os.path
 from dflow.python import OP, OPIO, OPIOSign, Artifact, BigParameter
 from dflow.python.python_op_template import TransientError
-from pathlib import Path
 from ase.io import read, write
 from negfflow.utils.set_directory import set_directory
 from negfflow.utils.run_command import run_command
@@ -42,9 +40,9 @@ class RunLammps(OP):
         work_dir = Path(task_name)
 
         with set_directory(work_dir):
-            safe_symlink("in.lammps", task_path / "in.lammps", work_path=work_dir)
-            safe_symlink("lammps.data", task_path / "lammps.data", work_path=work_dir)
-            safe_symlink(os.path.basename(deepmd_model), deepmd_model, work_path=work_dir)
+            safe_symlink("in.lammps", task_path / "in.lammps")
+            safe_symlink("lammps.data", task_path / "lammps.data")
+            safe_symlink(os.path.basename(deepmd_model), deepmd_model)
             command = " ".join([command, "-i", 'in.lammps', "-log", "log.lammps"])
             ret, out, err = run_command(command, shell=True)
             if ret != 0:
@@ -64,7 +62,7 @@ class RunLammps(OP):
                     )
                 )
                 raise TransientError("lmp failed")
-        
+
             relaxed_system = read("relaxed.data", format='lammps-data')
             write("relaxed.vasp", relaxed_system, vasp5=True)
 
@@ -77,6 +75,5 @@ class RunLammps(OP):
 
         return op_out
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
         return

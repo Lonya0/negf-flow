@@ -5,14 +5,13 @@ from typing import Type, Optional, List
 
 import dflow
 import dpdata
-from dflow import Step, Steps, InputParameter, InputArtifact, OutputArtifact, Inputs, Outputs, OPTemplate
+from dflow import Step, Steps, InputParameter, InputArtifact, OutputArtifact, Inputs, Outputs
 from dflow.python import OP, PythonOPTemplate
 import fpop
-
 import negfflow
 from negfflow.op.build_supercell import BuildSupercell
 from negfflow.op.overlap import overlap_styles
-from negfflow.op.prep_run_negf import PrepRunNegf, PrepNegf, RunNegf
+from negfflow.op.prep_run_negf import PrepRunNegf
 from negfflow.op.prep_run_overlap import PrepRunOverlap
 from negfflow.op.prep_run_relax import PrepRunRelax
 from negfflow.op.relax import relax_styles
@@ -36,7 +35,7 @@ def make_negf_step(config):
     ## load parameters
     # negf input config
     if isinstance(config['negf']['config'], str):
-        with open(config['negf']['config'], "r") as f:
+        with open(config['negf']['config'], "r", encoding="utf-8") as f:
             negf_input_config = json.load(f)
     elif isinstance(config['negf']['config'], dict):
         negf_input_config = config['negf']['config']
@@ -48,30 +47,29 @@ def make_negf_step(config):
         if 'timestep' in config['relax']['config']:
             relax_input_config = config['relax']['config']
         else:
-            with open(config['negf']['config'], "r") as f:
+            with open(config['negf']['config'], "r", encoding="utf-8") as f:
                 relax_input_config = f.read()
     else:
         relax_input_config = ''
 
-    # overlap input config
-    if overlap_style == 'abacus':
-        if config["overlap"]["inputs_config"]["input_file"] is not None:
-            with open(config["overlap"]["inputs_config"]["input_file"], "r") as f:
-                overlap_input_config = f.read()
-        else:
-            raise FileNotFoundError("pp and orb file must exist!")
-
-    """        """
     parameters = {
         "negf_input_config": negf_input_config,
         "relax_input_config": relax_input_config,
-        "overlap_input_config": overlap_input_config,
         "negf_config": config['negf'],
         "task_config": config['task'],
         "relax_config": config['relax'],
         "inputs_config": config['inputs'],
         "overlap_config": config['overlap']
     }
+
+    # overlap input config
+    if overlap_style == 'abacus':
+        if config["overlap"]["inputs_config"]["input_file"] is not None:
+            with open(config["overlap"]["inputs_config"]["input_file"], "r", encoding="utf-8") as f:
+                overlap_input_config = f.read()
+                parameters["overlap_input_config"] = overlap_input_config
+        else:
+            raise FileNotFoundError("pp and orb file must exist!")
 
     ## load artifacts
     # init_confs
@@ -167,7 +165,7 @@ def make_negf_op(
         run_negf_config,
         run_overlap_config,
         upload_python_packages):
-    if relax_style in relax_styles.keys():
+    if relax_style in relax_styles:
         prep_run_relax_op = PrepRunRelax(
             "prep-run-relax",
             relax_styles[relax_style]["prep"],
@@ -180,7 +178,7 @@ def make_negf_op(
         raise RuntimeError(f"unknown relax_style {relax_style}")
 
     if overlap_style is not None:
-        if overlap_style in overlap_styles.keys():
+        if overlap_style in overlap_styles:
             prep_run_overlap_op = PrepRunOverlap(
                 "prep-run-overlap",
                 overlap_styles[overlap_style]["prep"],
@@ -355,24 +353,5 @@ def _negf(
         key="prep-run-negf"
     )
     steps.add(prep_run_negf)
-
-    """    prep_run_fp = Step(
-        name=name + "-prep-run-fp",
-        template=prep_run_fp_op,
-        parameters={
-            "block_id": "init",
-            "fp_config": steps.inputs.parameters["fp_config"],
-            "type_map": steps.inputs.parameters["type_map"],
-        },
-        artifacts={
-            "confs": pert_gen.outputs.artifacts["confs"]
-        },
-        key="--".join(["init", "prep-run-fp"]),
-    )
-    steps.add(prep_run_fp)
-
-    steps.outputs.artifacts["multi_systems"]._from = collect_data.outputs.artifacts[
-        "multi_systems"
-    ]"""
 
     return steps

@@ -1,5 +1,4 @@
-from dflow.python import OP, OPIOSign, OPIO
-import os.path
+import os
 from typing import List
 from dflow.python import OP, OPIO, OPIOSign, BigParameter
 
@@ -57,7 +56,5 @@ class PrepNegf(OP):
 
         return op_out
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
         return
-
