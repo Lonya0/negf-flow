@@ -19,6 +19,7 @@ class RunNegf(OP):
     @classmethod
     def get_output_sign(cls):
         return OPIOSign({
+            "log": Artifact(Path),
             "extra_outputs": Artifact(List[Path], optional=True),
             "negf_result": Artifact(Path),
             "task_name": BigParameter(str)
@@ -33,6 +34,9 @@ class RunNegf(OP):
         from dptb.nn.build import build_model
         import torch
         import matplotlib.pyplot as plt
+        from dpnegf.utils.loggers import set_log_handles
+        import logging
+        from pathlib import Path
 
         task_name = op_in["task_name"]
         modified_negf_input_config = op_in["modified_negf_input_config"]
@@ -41,6 +45,10 @@ class RunNegf(OP):
         work_dir = Path(task_name)
 
         with set_directory(work_dir):
+            log_path = 'log'
+            log_level = logging.INFO
+            set_log_handles(log_level, Path(log_path) if log_path else None)
+
             safe_symlink(os.path.basename(deeptb_model), deeptb_model)
             safe_symlink("relaxed.vasp", relaxed_system)
 
@@ -75,6 +83,7 @@ class RunNegf(OP):
             plt.savefig('transmission.png')
 
         op_out = OPIO({
+            "log": Path(work_dir) / "log",
             "extra_outputs": [Path(work_dir) / "dos.png", 
                               Path(work_dir) / "transmission.png"],
             "negf_result": Path(work_dir) / "negf.out.pth",
