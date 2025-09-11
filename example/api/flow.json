@@ -104,9 +104,9 @@
     "negf":{
 		"config": "negf.json",
 		"supercell": {
-			"lead_L": 2,
+			"lead_L": 4,
 			"device": 2,
-			"lead_R": 2
+			"lead_R": 4
 		},
 		"direction": "z"
     },

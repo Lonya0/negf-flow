@@ -43,7 +43,6 @@ class PrepRunNegf(Steps):
             "task_names": OutputParameter(),
         }
         self._output_artifacts = {
-            "logs": OutputArtifact(),
             "negf_results": OutputArtifact(),
             "extra_outputs": OutputArtifact(),
         }
@@ -142,7 +141,7 @@ def _prep_run_negf(
                 "int('{{item}}')",
                 input_parameter=["task_name", "modified_negf_input_config"],
                 input_artifact=["relaxed_system"],
-                output_artifact=["log", "negf_result", "extra_outputs"],
+                output_artifact=["negf_result", "extra_outputs"],
                 **template_slice_config,
             ),
             python_packages=upload_python_packages,
@@ -166,7 +165,6 @@ def _prep_run_negf(
     prep_run_steps.add(run_negf)
 
     prep_run_steps.outputs.parameters["task_names"].value_from_parameter = prep_negf.outputs.parameters["task_names"]
-    prep_run_steps.outputs.artifacts["logs"]._from = run_negf.outputs.artifacts["log"]
     prep_run_steps.outputs.artifacts["negf_results"]._from = run_negf.outputs.artifacts[
         "negf_result"
     ]

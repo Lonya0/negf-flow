@@ -246,7 +246,8 @@ class NEGFSteps(Steps):
         self._output_parameters = {}
         self._output_artifacts = {
             "relaxed_systems": OutputArtifact(),
-            "negf_out": OutputArtifact()
+            "negf_results": OutputArtifact(),
+            "extra_outputs": OutputArtifact(optional=True)
         }
         super().__init__(
             name=name,
@@ -353,5 +354,13 @@ def _negf(
         key="prep-run-negf"
     )
     steps.add(prep_run_negf)
+
+    steps.outputs.artifacts["relaxed_systems"]._from = prep_run_relax.outputs.artifacts["relaxed_systems"]
+    steps.outputs.artifacts["negf_results"]._from = prep_run_negf.outputs.artifacts[
+        "negf_results"
+    ]
+    steps.outputs.artifacts["extra_outputs"]._from = prep_run_negf.outputs.artifacts[
+        "extra_outputs"
+    ]
 
     return steps
