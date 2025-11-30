@@ -85,7 +85,8 @@ class RunNegf(OP):
         op_out = OPIO({
             "log": Path(work_dir) / "log",
             "extra_outputs": [Path(work_dir) / "dos.png", 
-                              Path(work_dir) / "transmission.png"],
+                              Path(work_dir) / "transmission.png",
+                              Path(work_dir) / "profile_report.html"],
             "negf_result": Path(work_dir) / "negf.out.pth",
             "task_name": task_name
         })
