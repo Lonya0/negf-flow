@@ -12,7 +12,7 @@ class PrepLammps(OP):
         return OPIOSign({
             "stacked_systems": Artifact(List[Path]),
             "relax_config": dict,
-            "system_infos": List[dict],
+            "system_infos": BigParameter(List[dict]),
             "inputs_config": dict
         })
 
@@ -53,6 +53,29 @@ class PrepLammps(OP):
                 list(range(1, system_info['atom_index'][0] + 1)) +
                 list(range(system_info['atom_index'][1] + 1, system_info['atom_index'][2] + 1))
             )
+
+            if "device_end_fixed_radius" in relax_config:
+                radius = relax_config["device_end_fixed_radius"]
+
+                cell = system.get_cell()
+                cell_z = cell[2][2]
+
+                atom_number = system_info['atom_number']
+                supercell_multiplier = system_info['atom_index'][2] / atom_number
+                cell_length = cell_z / supercell_multiplier
+
+                a0, a1 = system_info['atom_index'][0], system_info['atom_index'][1]
+
+                z0_limit = (a0 / atom_number) * cell_length + radius
+                z1_limit = (a1 / atom_number) * cell_length - radius
+
+                positions = system.get_positions()
+                for idx in range(a0, a1):
+                    atom_id = idx + 1
+                    z = positions[idx][2]
+
+                    if z < z0_limit or z > z1_limit:
+                        fixed_atom_indices.append(atom_id)
 
             if "deepmd_model_type_map" in op_in["inputs_config"] and op_in["inputs_config"]["deepmd_model_type_map"]:
                 specorder = op_in["inputs_config"]["deepmd_model_type_map"]
@@ -139,6 +162,15 @@ def _group_fixed_by_ids(fixed_ids):
     if not fixed_ids:
         return "# no fixed atoms\ngroup mobile all"
     ids = [str(i) for i in sorted(set(fixed_ids))]
+    lines = [f"group fixed id {' '.join(ids)}",
+             "group mobile subtract all fixed"]
+    return "\n".join(lines)
+
+"""
+def _group_fixed_by_ids(fixed_ids):
+    if not fixed_ids:
+        return "# no fixed atoms\ngroup mobile all"
+    ids = [str(i) for i in sorted(set(fixed_ids))]
     chunks = [ids[i:i+15] for i in range(0, len(ids), 15)]
     lines, tmps = [], []
     for k, ch in enumerate(chunks, 1):
@@ -152,7 +184,7 @@ def _group_fixed_by_ids(fixed_ids):
     for g in tmps:
         lines.append(f"group {g} delete")
     lines.append("group mobile subtract all fixed")
-    return "\n".join(lines)
+    return "\n".join(lines)"""
 
 def _ensemble_block(ensemble, T, P, dt, nsteps):
     if ensemble.lower() == "min":

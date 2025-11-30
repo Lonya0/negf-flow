@@ -2,7 +2,7 @@
     "task_options": {
         "task": "negf",
         "scf": false,
-        "block_tridiagonal": false,
+        "block_tridiagonal": true,
         "ele_T": 300,
         "unit": "eV",
         "scf_options":{
@@ -19,6 +19,7 @@
             "time_reversal_symmetry": true,
             "nel_atom": {"C": 4.0},
             "kmesh":[1,1,1],
+			"eig_solver":"numpy",
             "pbc":[false, false, false],
             "device":{
                 "id":"4-8",
@@ -53,7 +54,7 @@
         "eta_device": 0.0,
         "out_dos": true,
         "out_tc": true,
-        "out_ldos": true,
+        "out_ldos": false,
         "out_current_nscf": true
     },
     "structure":"./chain.vasp"

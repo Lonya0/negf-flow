@@ -86,14 +86,46 @@
 				},
 				"clean": false
 			}
+        },
+		"run_negf_config": {
+			"template_config": {
+				"image": ""
+			},
+			"executor": {
+				"type": "dispatcher",
+				"image_pull_policy": "IfNotPresent",
+				"machine_dict": {
+					"batch_type": "Slurm",
+					"context_type": "SSHContext",
+					"local_root": "./",
+					"remote_root": "/public4/home/a0s000985/yyt/CNT/negf_negf",
+					"remote_profile": {
+						"hostname": "ssh.cn-zhongwei-1.paracloud.com",
+						"username": "a0s000985@BSCC-A",
+						"timeout": 600,
+						"port": 22,
+						"key_filename": "/root/.ssh/id_ed25519"
+					}
+				},
+				"resources_dict": {
+					"number_node": 1,
+					"gpu_per_node": 0,
+					"cpu_per_node": 64,
+					"queue_name": "amd_256",
+					"custom_flags": ["source /public4/home/a0s000985/yyt/envs/negf.sh"],
+					"source_list": [],
+					"module_list": []
+				},
+				"clean": false
+			}
         }
-    },
+	},
     "task":{
         "type": "negf",
 		"use_external_overlap": true
     },
     "inputs": {
-		"init_confs_prefix": "./init_confs/",
+		"init_confs_prefix": "/root/shared-nvme/CNT/perfect",
 		"init_confs_paths": [
 			"10_0.vasp"
 		],
@@ -104,9 +136,9 @@
     "negf":{
 		"config": "negf.json",
 		"supercell": {
-			"lead_L": 4,
-			"device": 2,
-			"lead_R": 4
+			"lead_L": 2,
+			"device": 6,
+			"lead_R": 2
 		},
 		"direction": "z"
     },
