@@ -1,4 +1,7 @@
-import os
+import copy
+
+from dflow.python import OP, OPIOSign, OPIO
+import os.path
 from typing import List
 from dflow.python import OP, OPIO, OPIOSign, BigParameter
 
@@ -7,7 +10,7 @@ class PrepNegf(OP):
     def get_input_sign(cls):
         return OPIOSign({
             "negf_input_config": dict,
-            "task_infos": List[dict],
+            "task_infos": BigParameter(List[dict]),
             "task_config": dict
         })
 
@@ -36,7 +39,7 @@ class PrepNegf(OP):
 
             os.makedirs(output_dir, exist_ok=True)
 
-            modified_negf_input_config = negf_input_config.copy()
+            modified_negf_input_config = copy.deepcopy(negf_input_config)
             modified_negf_input_config['task_options']['stru_options']['device']['id'] = f"{system_info['atom_index'][0]}-{system_info['atom_index'][1]}"
             modified_negf_input_config['task_options']['stru_options']['lead_L']['id'] = f"0-{system_info['atom_index'][0]}"
             modified_negf_input_config['task_options']['stru_options']['lead_R']['id'] = f"{system_info['atom_index'][1]}-{system_info['atom_index'][2]}"
@@ -56,5 +59,6 @@ class PrepNegf(OP):
 
         return op_out
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         return
