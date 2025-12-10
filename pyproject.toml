@@ -36,6 +36,7 @@ dependencies = [
     "dpgui",
     "cp2kdata",
     "ase",
+    "dpdispatcher"
 ]
 
 [project.urls]
