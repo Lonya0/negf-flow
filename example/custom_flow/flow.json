@@ -1,0 +1,121 @@
+{
+    "name": "press-band-flow",
+    "default_step_config": {
+		"template_config": {
+            "image": ""
+        },
+        "executor": {
+            "type": "dispatcher",
+            "image_pull_policy": "IfNotPresent",
+            "machine_dict": {
+                "batch_type": "Shell",
+				"context_type": "LazyLocalContext",
+				"local_root": "./"
+			},
+			"resources_dict": {
+				"number_node": 1,
+				"gpu_per_node": 2,
+				"cpu_per_node": 2,
+				"custom_flags": ["source /root/shared-nvme/CNT/negf-flow/example/api/local.env"],
+				"source_list": []
+			},
+			"clean": false
+        }
+    },
+    "step_configs": {
+		"run_press_config": {
+			"template_config": {
+				"image": ""
+			},
+			"executor": {
+				"type": "dispatcher",
+				"image_pull_policy": "IfNotPresent",
+				"machine_dict": {
+					"batch_type": "Slurm",
+					"context_type": "SSHContext",
+					"local_root": "./",
+					"remote_root": "/data/home/sczc167/run/yyt/cnt/press_band_lmp",
+					"remote_profile": { 
+						"hostname": "ssh.cn-zhongwei-1.paracloud.com",
+						"username": "sczc167@BSCC-N16R4",
+						"timeout": 600,
+						"port": 22,
+						"key_filename": "/root/.ssh/id_ed25519" 
+					}
+				},
+				"resources_dict": {
+					"number_node": 1,
+					"gpu_per_node": 2,
+					"cpu_per_node": 2,
+					"queue_name": "gpu",
+					"custom_flags": ["source /data/home/sczc167/run/dp3env.sh"],
+					"source_list": [],
+					"module_list": []
+				},
+				"clean": false
+			}
+        },
+		"run_dptb_config": {
+			"template_config": {
+				"image": ""
+			},
+			"executor": {
+				"type": "dispatcher",
+				"image_pull_policy": "IfNotPresent",
+				"machine_dict": {
+					"batch_type": "Slurm",
+					"context_type": "SSHContext",
+					"local_root": "./",
+					"remote_root": "/public4/home/a0s000985/yyt/CNT/press_band_dptb",
+					"remote_profile": {
+						"hostname": "ssh.cn-zhongwei-1.paracloud.com",
+						"username": "a0s000985@BSCC-A",
+						"timeout": 600,
+						"port": 22,
+						"key_filename": "/root/.ssh/id_ed25519"
+					}
+				},
+				"resources_dict": {
+					"number_node": 1,
+					"gpu_per_node": 0,
+					"cpu_per_node": 64,
+					"queue_name": "amd_256",
+					"custom_flags": ["source /public4/home/a0s000985/yyt/envs/negf.sh"],
+					"source_list": [],
+					"module_list": []
+				},
+				"clean": false
+			}
+        }
+	},
+    "task":{
+        "type": "negf"
+    },
+    "inputs": {
+		"init_confs_prefix": "/root/shared-nvme/CNT/perfect",
+		"init_confs_paths": [
+			"10_0.vasp"
+		],
+        "deepmd_model_path": "frozen_model.pb",
+		"deepmd_model_type_map": ["C"],
+		"deeptb_model_path": "mix.ep636.pth"
+    },
+    "press_band":{
+		"supercell": [1,1,10]
+    },
+    "press": {
+		"type": "lmp",
+        "ensemble": "nvt",
+		"dt": 0.001,
+		"nsteps": 1000,
+		"temps": [300],
+		"press": [0],
+		"run_config": {
+			"command": "lmp"
+		},
+		"nonaxial_press": {}
+	},
+	"dptb": {
+		"command": "dptb band"
+	}
+}
