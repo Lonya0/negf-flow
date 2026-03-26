@@ -100,7 +100,15 @@ class PrepLammps(OP):
 
                     mass_lines = _mass_lines(specorder)
                     group_lines = _group_fixed_by_ids(fixed_atom_indices)
-                    ensemble_block = _ensemble_block(relax_config['ensemble'], temp, pres, relax_config['dt'], relax_config['nsteps'])
+                    ensemble_block = _ensemble_block(relax_config['ensemble'],
+                                                     temp,
+                                                     pres,
+                                                     relax_config['dt'],
+                                                     relax_config['nsteps'],
+                                                     relax_config['additional']['temp_0'],
+                                                     relax_config['additional']['nstep_heating'],
+                                                     relax_config['additional']['nstep_equil'],
+                                                     relax_config['additional']['n_out'])
 
                     in_lammps_path = os.path.join(task_dir, "in.lammps")
                     with open(in_lammps_path, "w", encoding="utf-8") as f:
@@ -120,7 +128,7 @@ neighbor        2.0 bin
 neigh_modify    every 10 delay 0 check yes
 
 {group_lines}
-fix             hold fixed setforce 0.0 0.0 0.0
+fix freeze fixed spring/self 1e8
 
 {ensemble_block}
 
@@ -186,7 +194,15 @@ def _group_fixed_by_ids(fixed_ids):
     lines.append("group mobile subtract all fixed")
     return "\n".join(lines)"""
 
-def _ensemble_block(ensemble, T, P, dt, nsteps):
+def _ensemble_block(ensemble,
+                    T,
+                    P,
+                    dt,
+                    nsteps,
+                    temp_0 = 50,
+                    nstep_heating = 10000,
+                    nstep_equil = 10000,
+                    n_out = 10):
     if ensemble.lower() == "min":
         return (
             "thermo          100\n"
@@ -216,5 +232,43 @@ def _ensemble_block(ensemble, T, P, dt, nsteps):
             "thermo          100\n"
             f"timestep        {dt}\n"
             f"run             {nsteps}"
+        )
+    if ensemble.lower() == "smart":
+        return (
+            "\n".join(["# -----------------------------",
+            "# 0. 能量最小化",
+            "min_style       cg",
+            "minimize        1e-10 1e-10 10000 10000",
+            "reset_timestep  0",
+            "# -----------------------------",
+            "# 1. 初始速度（低温启动）",
+            f"velocity mobile create {temp_0} 12345 mom yes rot yes dist gaussian",
+            "# -----------------------------",
+            "# 2. 缓慢升温（50K → 目标温度）",
+            f"variable T equal {T}",
+            f"fix heat mobile nvt temp {temp_0} {T} 0.1",
+            "thermo 100",
+            "timestep 0.001",
+            f"run {nstep_heating}     # 50 ps 升温",
+            "unfix heat",
+            "reset_timestep 0",
+            "# -----------------------------",
+            "# 3. 恒温弛豫（达到热平衡）",
+            "fix equil mobile nvt temp ${T} ${T} 0.1",
+            "dump eq all atom 500 equil.xyz",
+            f"run {nstep_equil}     # 50 ps 平衡",
+            "unfix equil",
+            "undump eq",
+            "reset_timestep 0",
+            "# -----------------------------",
+            "# 4. 采样阶段（关键：系综平均）",
+            "fix sample mobile nvt temp ${T} ${T} 0.1",
+            "# 每1000步输出一个结构（约1 ps间隔）",
+            "dump traj all custom 1000 traj.xyz id type x y z",
+            'dump_modify traj format line "%d %d %.16f %.16f %.16f"',
+            f"run {1000 * (n_out - 1)}    # 100 ps → 得到约100个构型",
+            "unfix sample",
+            "undump traj",
+            "write_data final.data"])
         )
     raise ValueError("ensemble 必须是 'min'/'nvt'/'npt'/'nve' 之一")
