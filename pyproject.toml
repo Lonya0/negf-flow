@@ -29,14 +29,15 @@ dependencies = [
     "numpy",
     "dpdata",
     "pydflow>=1.6.57",
-    "dargs>=0.4.10",
+    "dargs>=0.4.0",
     "scipy",
     "packaging",
     "fpop==0.0.7",
     "dpgui",
     "cp2kdata",
-    "ase",
-    "dpdispatcher"
+    "ase>=3.27.0",
+    "dpdispatcher",
+    "dftio @ git+https://github.com/deepmodeling/dftio.git"
 ]
 
 [project.urls]
