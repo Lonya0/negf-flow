@@ -40,11 +40,24 @@ def relax_arg():
         doc_temps = "temps"
         doc_press = "press"
         doc_run_config = "Configuration for running lammps"
+        doc_additional = "additional"
 
         def run_config_field():
             doc_cmd = "The command of abacus"
             return [
                 Argument("command", str, optional=True, default="lmp", doc=doc_cmd),
+            ]
+
+        def additional_field():
+            doc_temp_0 = "temp_0"
+            doc_nstep_heating = "nstep_heating"
+            doc_nstep_equil = "nstep_equil"
+            doc_n_out = "n_out"
+            return [
+                Argument("temp_0", str, optional=True, default=50, doc=doc_temp_0),
+                Argument("nstep_heating", str, optional=True, default=10000, doc=doc_nstep_heating),
+                Argument("nstep_equil", str, optional=True, default=10000, doc=doc_nstep_equil),
+                Argument("n_out", str, optional=True, default=10, doc=doc_n_out)
             ]
 
         return [
@@ -54,7 +67,8 @@ def relax_arg():
             Argument("nsteps", int, optional=True, default=True, doc=doc_nsteps),
             Argument("temps", [int, List[int]], optional=False, doc=doc_temps),
             Argument("press", [int, List[int]], optional=False, doc=doc_press),
-            Argument("run_config", dict, run_config_field(), optional=False, doc=doc_run_config)
+            Argument("run_config", dict, run_config_field(), optional=False, doc=doc_run_config),
+            Argument("additional", dict, additional_field(), optional=True, doc=doc_additional)
         ]
 
     return [
@@ -352,10 +366,12 @@ def negf_arg():
         doc_config = "config"
         doc_supercell = "supercell"
         doc_direction = "direction"
+        doc_auto_scale_length = "auto_scale_length"
         return [
             Argument("config", str, optional=False, doc=doc_config),
             Argument("supercell", dict, supercell_field(), optional=False, doc=doc_supercell),
-            Argument("direction", str, optional=False, doc=doc_direction)
+            Argument("direction", str, optional=False, doc=doc_direction),
+            Argument("auto_scale_length", float, optional=True, doc=doc_auto_scale_length)
         ]
 
     return [

@@ -40,7 +40,7 @@
 						"username": "sczc167@BSCC-N16R4",
 						"timeout": 600,
 						"port": 22,
-						"key_filename": "/root/.ssh/id_ed25519" 
+						"key_filename": "/home/ubuntu/.ssh/id_ed25519"
 					}
 				},
 				"resources_dict": {
@@ -55,7 +55,7 @@
 				"clean": false
 			}
         },
-		"run_overlap_config": {
+		"get_overlap_config": {
 			"template_config": {
 				"image": ""
 			},
@@ -66,21 +66,21 @@
 					"batch_type": "Slurm",
 					"context_type": "SSHContext",
 					"local_root": "./",
-					"remote_root": "/data/home/sczc167/run/yyt/cnt/negf_ovp",
+					"remote_root": "/public4/home/a0s000985/yyt/CNT/negf_ovp",
 					"remote_profile": {
 						"hostname": "ssh.cn-zhongwei-1.paracloud.com",
-						"username": "sczc167@BSCC-N16R4",
+						"username": "a0s000985@BSCC-A",
 						"timeout": 600,
 						"port": 22,
-						"key_filename": "/root/.ssh/id_ed25519" 
+						"key_filename": "/home/ubuntu/.ssh/id_ed25519"
 					}
 				},
 				"resources_dict": {
 					"number_node": 1,
-					"gpu_per_node": 2,
-					"cpu_per_node": 2,
-					"queue_name": "gpu",
-					"custom_flags": ["source /data/home/sczc167/run/dp3env.sh"],
+					"gpu_per_node": 0,
+					"cpu_per_node": 64,
+					"queue_name": "amd_256",
+					"custom_flags": [],
 					"source_list": [],
 					"module_list": []
 				},
@@ -104,7 +104,7 @@
 						"username": "a0s000985@BSCC-A",
 						"timeout": 600,
 						"port": 22,
-						"key_filename": "/root/.ssh/id_ed25519"
+						"key_filename": "/home/ubuntu/.ssh/id_ed25519"
 					}
 				},
 				"resources_dict": {
@@ -122,10 +122,10 @@
 	},
     "task":{
         "type": "negf",
-		"use_external_overlap": true
+		"use_external_overlap": false
     },
     "inputs": {
-		"init_confs_prefix": "/root/shared-nvme/CNT/perfect",
+		"init_confs_prefix": "./init_confs/",
 		"init_confs_paths": [
 			"10_0.vasp"
 		],
@@ -140,12 +140,13 @@
 			"device": 6,
 			"lead_R": 2
 		},
-		"direction": "z"
+		"direction": "z",
+		"auto_scale_length": 15
     },
     "relax": {
 		"type": "lmp",
 		"config": "lammps.in",
-        "ensemble": "nvt",
+        "ensemble": "smart",
 		"device_end_fixed_radius": 4.99,
 		"dt": 0.001,
 		"nsteps": 1000,
@@ -153,6 +154,12 @@
 		"press": [0],
 		"run_config": {
 			"command": "lmp"
+		},
+		"additional": {
+			"temp_0": 50,
+			"nstep_heating": 100,
+			"nstep_equil": 100,
+			"n_out": 4
 		}
 	},
     "overlap": {

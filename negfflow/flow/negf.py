@@ -10,9 +10,8 @@ from dflow.python import OP, PythonOPTemplate
 import fpop
 import negfflow
 from negfflow.op.build_supercell import BuildSupercell
-from negfflow.op.overlap import overlap_styles
+from negfflow.op.get_overlap import GetOverlap
 from negfflow.op.prep_run_negf import PrepRunNegf
-from negfflow.op.prep_run_overlap import PrepRunOverlap
 from negfflow.op.prep_run_relax import PrepRunRelax
 from negfflow.op.relax import relax_styles
 from negfflow.utils.artifact import get_artifact_from_uri, upload_artifact_and_print_uri
@@ -62,15 +61,6 @@ def make_negf_step(config):
         "overlap_config": config['overlap']
     }
 
-    # overlap input config
-    if overlap_style == 'abacus':
-        if config["overlap"]["inputs_config"]["input_file"] is not None:
-            with open(config["overlap"]["inputs_config"]["input_file"], "r", encoding="utf-8") as f:
-                overlap_input_config = f.read()
-                parameters["overlap_input_config"] = overlap_input_config
-        else:
-            raise FileNotFoundError("pp and orb file must exist!")
-
     ## load artifacts
     # init_confs
     if config["inputs"]["init_confs_uri"] is not None:
@@ -115,15 +105,19 @@ def make_negf_step(config):
 
     if overlap_style == 'abacus':
         if (config["overlap"]["inputs_config"]["pp_files"] is not None and
-                config["overlap"]["inputs_config"]["orb_files"] is not None):
-            pp_orb_list = (list(config["overlap"]["inputs_config"]["pp_files"].values()) +
-                           list(config["overlap"]["inputs_config"]["orb_files"].values()))
-            pp_orb = upload_artifact_and_print_uri(
-                pp_orb_list, "pp_orb"
-            )
+                config["overlap"]["inputs_config"]["orb_files"] is not None and
+                config["overlap"]["inputs_config"]["input_file"] is not None):
+            abacus_pp_list = list(config["overlap"]["inputs_config"]["pp_files"].values())
+            abacus_orb_list = list(config["overlap"]["inputs_config"]["orb_files"].values())
+            abacus_pp = upload_artifact_and_print_uri(abacus_pp_list, "abacus_pp")
+            abacus_orb = upload_artifact_and_print_uri(abacus_orb_list, "abacus_orb")
+            abacus_overlap_input = upload_artifact_and_print_uri(config["overlap"]["inputs_config"]["input_file"],
+                                                                 "abacus_overlap_input")
         else:
             raise FileNotFoundError("pp and orb file must exist!")
-        artifacts['pp_orb'] = pp_orb
+        artifacts['abacus_pp'] = abacus_pp
+        artifacts['abacus_orb'] = abacus_orb
+        artifacts['abacus_overlap_input'] = abacus_overlap_input
 
     negf_op = make_negf_op(
         relax_style=config['relax']['type'],
@@ -131,10 +125,10 @@ def make_negf_step(config):
         build_supercell_step_config=config["step_configs"].get("build_supercell_step_config", default_config),
         prep_relax_config=config["step_configs"].get("prep_relax_config", default_config),
         prep_negf_config = config["step_configs"].get("prep_negf_config", default_config),
-        prep_overlap_config = config["step_configs"].get("prep_overlap_config", default_config),
         run_relax_config = config["step_configs"].get("run_relax_config", default_config),
         run_negf_config = config["step_configs"].get("run_negf_config", default_config),
-        run_overlap_config = config["step_configs"].get("run_overlap_config", default_config),
+        get_overlap_config=config["step_configs"].get("get_overlap_config", default_config),
+        dftio_config = config["step_configs"].get("dftio_config", default_config),
         upload_python_packages=upload_python_packages
     )
 
@@ -160,10 +154,10 @@ def make_negf_op(
         build_supercell_step_config,
         prep_relax_config,
         prep_negf_config,
-        prep_overlap_config,
         run_relax_config,
         run_negf_config,
-        run_overlap_config,
+        get_overlap_config,
+        dftio_config,
         upload_python_packages):
     if relax_style in relax_styles:
         prep_run_relax_op = PrepRunRelax(
@@ -178,19 +172,17 @@ def make_negf_op(
         raise RuntimeError(f"unknown relax_style {relax_style}")
 
     if overlap_style is not None:
-        if overlap_style in overlap_styles:
-            prep_run_overlap_op = PrepRunOverlap(
-                "prep-run-overlap",
-                overlap_styles[overlap_style]["prep"],
-                overlap_styles[overlap_style]["run"],
-                prep_config=prep_overlap_config,
-                run_config=run_overlap_config,
-                upload_python_packages=upload_python_packages,
+        if overlap_style == "abacus":
+            overlap_op = GetOverlap(
+                "get-overlap",
+                get_overlap_config=get_overlap_config,
+                dftio_config=dftio_config,
+                upload_python_packages=upload_python_packages
             )
         else:
             raise RuntimeError(f"unknown overlap_style {overlap_style}")
     else:
-        prep_run_overlap_op = None
+        overlap_op = None
 
     prep_run_negf_op = PrepRunNegf(
         "prep-run-negf",
@@ -203,10 +195,10 @@ def make_negf_op(
         "negf",
         build_supercell_op=BuildSupercell,
         prep_run_relax_op=prep_run_relax_op,
-        prep_run_overlap_op=prep_run_overlap_op,
         prep_run_negf_op=prep_run_negf_op,
         build_supercell_step_config=build_supercell_step_config,
-        upload_python_packages=upload_python_packages
+        upload_python_packages=upload_python_packages,
+        overlap_op=overlap_op
     )
 
 
@@ -220,15 +212,14 @@ class NEGFSteps(Steps):
             name: str,
             build_supercell_op: Type[OP],
             prep_run_relax_op: Type[OP],
-            prep_run_overlap_op: Optional[OP],
             prep_run_negf_op: Type[OP],
             build_supercell_step_config: dict,
-            upload_python_packages: Optional[List[os.PathLike]] = None
+            upload_python_packages: Optional[List[os.PathLike]] = None,
+            overlap_op = None
     ):
         self._input_parameters = {
             "negf_input_config": InputParameter(),
             "relax_input_config": InputParameter(),
-            "overlap_input_config": InputParameter(),
             "task_config": InputParameter(),
             "relax_config": InputParameter(),
             "inputs_config": InputParameter(),
@@ -240,8 +231,10 @@ class NEGFSteps(Steps):
             "deepmd_model": InputArtifact(),
             "deeptb_model": InputArtifact()
         }
-        if prep_run_overlap_op is not None:
-            self._input_artifacts["pp_orb"] = InputArtifact()
+        if overlap_op:
+            self._input_artifacts["abacus_overlap_input"] = InputArtifact()
+            self._input_artifacts["abacus_pp"] = InputArtifact()
+            self._input_artifacts["abacus_orb"] = InputArtifact()
 
         self._output_parameters = {}
         self._output_artifacts = {
@@ -267,7 +260,8 @@ class NEGFSteps(Steps):
             build_supercell_step_config=build_supercell_step_config,
             prep_run_relax_op=prep_run_relax_op,
             prep_run_negf_op=prep_run_negf_op,
-            upload_python_packages=upload_python_packages
+            upload_python_packages=upload_python_packages,
+            overlap_op=overlap_op
         )
 
     @property
@@ -294,7 +288,8 @@ def _negf(
         build_supercell_step_config: dict,
         prep_run_relax_op,
         prep_run_negf_op,
-        upload_python_packages: Optional[List[os.PathLike]] = None
+        upload_python_packages: Optional[List[os.PathLike]] = None,
+        overlap_op = None
 ):
     """
     Creates the steps for the DataGen operation.
@@ -339,20 +334,55 @@ def _negf(
     )
     steps.add(prep_run_relax)
 
-    prep_run_negf = Step(
-        name=name + "-prep-run-negf",
-        template=prep_run_negf_op,
-        parameters={
-            "negf_input_config": steps.inputs.parameters["negf_input_config"],
-            "task_infos": prep_run_relax.outputs.parameters["task_infos"],
-            "task_config": steps.inputs.parameters["task_config"]
-        },
-        artifacts={
-            "relaxed_systems": prep_run_relax.outputs.artifacts["relaxed_systems"],
-            "deeptb_model": steps.inputs.artifacts["deeptb_model"]
-        },
-        key="prep-run-negf"
-    )
+    if overlap_op:
+        get_overlap = Step(
+            name=name + "-get-overlap",
+            template=overlap_op,
+            parameters={
+                "run_config": steps.inputs.parameters["overlap_config"]["run_config"]
+            },
+            artifacts={
+                "poscar_file": prep_run_relax.outputs.artifacts["relaxed_systems"],
+                "input_file": steps.inputs.artifacts["abacus_overlap_input"],
+                "pp_files": steps.inputs.artifacts["abacus_pp"],
+                "orb_files": steps.inputs.artifacts["abacus_orb"]
+            },
+            key="get-overlap"
+        )
+        steps.add(get_overlap)
+
+        prep_run_negf = Step(
+            name=name + "-prep-run-negf",
+            template=prep_run_negf_op,
+            parameters={
+                "negf_input_config": steps.inputs.parameters["negf_input_config"],
+                "task_infos": prep_run_relax.outputs.parameters["task_infos"],
+                "task_config": steps.inputs.parameters["task_config"]
+            },
+            artifacts={
+                "relaxed_systems": prep_run_relax.outputs.artifacts["relaxed_systems"],
+                "deeptb_model": steps.inputs.artifacts["deeptb_model"],
+                "overlap": get_overlap.outputs.artifacts["overlap"]
+            },
+            key="prep-run-negf"
+        )
+
+    else:
+        prep_run_negf = Step(
+            name=name + "-prep-run-negf",
+            template=prep_run_negf_op,
+            parameters={
+                "negf_input_config": steps.inputs.parameters["negf_input_config"],
+                "task_infos": prep_run_relax.outputs.parameters["task_infos"],
+                "task_config": steps.inputs.parameters["task_config"]
+            },
+            artifacts={
+                "relaxed_systems": prep_run_relax.outputs.artifacts["relaxed_systems"],
+                "deeptb_model": steps.inputs.artifacts["deeptb_model"]
+            },
+            key="prep-run-negf"
+        )
+
     steps.add(prep_run_negf)
 
     steps.outputs.artifacts["relaxed_systems"]._from = prep_run_relax.outputs.artifacts["relaxed_systems"]
