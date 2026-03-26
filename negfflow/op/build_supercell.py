@@ -33,12 +33,12 @@ class BuildSupercell(OP):
         assert negf_config['supercell']['lead_L'] == negf_config['supercell']['lead_R'], "lead_L should be equal to lead_R for symmetric leads."
         assert negf_config['supercell']['lead_L'] % 2 == 0, "lead should be in even number as double principal layers."
 
-        def stack(init_system, _output_file, negf_config):
+        def stack(init_system, _output_file, _negf_config):
             # di = direction index, sm = super cell matrix
-            if negf_config['direction'] == 'x': (di, sm) = (0, np.array([1, 0, 0]))
-            elif negf_config['direction'] == 'y': (di, sm) = (1, np.array([0, 1, 0]))
-            elif negf_config['direction'] == 'z': (di, sm) = (2, np.array([0, 0, 1]))
-            else: raise TypeError(f"direction {negf_config['direction']} is not legal!")
+            if _negf_config['direction'] == 'x': (di, sm) = (0, np.array([1, 0, 0]))
+            elif _negf_config['direction'] == 'y': (di, sm) = (1, np.array([0, 1, 0]))
+            elif _negf_config['direction'] == 'z': (di, sm) = (2, np.array([0, 0, 1]))
+            else: raise TypeError(f"direction {_negf_config['direction']} is not legal!")
 
             # sort in direction
             directional_coords = init_system.positions[:, di]
@@ -50,14 +50,42 @@ class BuildSupercell(OP):
                 pbc=init_system.pbc
             )
 
+            # unified length
+            if 'auto_scale_length' in _negf_config.keys():
+                if _negf_config['direction'] == 'x':
+                    stru_length = sorted_system.cell.lengths()[0]
+                    sm = np.array([1, 0, 0])
+                elif _negf_config['direction'] == 'y':
+                    stru_length = sorted_system.cell.lengths()[1]
+                    sm = np.array([0, 1, 0])
+                elif _negf_config['direction'] == 'z':
+                    stru_length = sorted_system.cell.lengths()[2]
+                    sm = np.array([0, 0, 1])
+                else:
+                    raise TypeError(f"direction {_negf_config['direction']} is not legal!")
+                mult = int(_negf_config['auto_scale_length'] // stru_length)
+                sorted_system = sorted_system.repeat((1, 1, 1) + (mult - 1) * sm)
+
+                # sort again
+                directional_coords = sorted_system.positions[:, di]
+                sorted_indices = np.argsort(directional_coords)
+                sorted_system = Atoms(
+                    symbols=sorted_system.symbols[sorted_indices],
+                    positions=sorted_system.positions[sorted_indices],
+                    cell=sorted_system.cell,
+                    pbc=sorted_system.pbc
+                )
+            else:
+                mult = 1
+
             # build supercell
-            repeat = sum(negf_config['supercell'].values())
+            repeat = sum(_negf_config['supercell'].values())
             supercell = sorted_system.repeat((1, 1, 1) + (repeat - 1) * sm)
 
             # switch 1-2 principal layers
             pos = supercell.get_positions()
-            n_cell = int(negf_config['supercell']['lead_L'] / 2) # how many unit cells in one principal layer
-            atom_number_of_layer = len(init_system) * n_cell
+            n_cell = int(_negf_config['supercell']['lead_L'] / 2) # how many unit cells in one principal layer
+            atom_number_of_layer = len(sorted_system) * n_cell
             cell_c = sorted_system.cell[di, di]
             new_pos = np.vstack([pos[:atom_number_of_layer] + sm * cell_c * n_cell,
                                  pos[atom_number_of_layer:2 * atom_number_of_layer] - sm * cell_c * n_cell, 
@@ -65,9 +93,10 @@ class BuildSupercell(OP):
             supercell.set_positions(new_pos)
 
             write(_output_file, supercell, format='vasp')
-            return (negf_config['supercell']['lead_L'], 
-                    negf_config['supercell']['device'], 
-                    negf_config['supercell']['lead_R'])
+            return (_negf_config['supercell']['lead_L'],
+                    _negf_config['supercell']['device'],
+                    _negf_config['supercell']['lead_R'],
+                    mult)
 
         out_systems = []
         system_infos = []
@@ -76,11 +105,11 @@ class BuildSupercell(OP):
             with open(conf, "r", encoding="utf-8") as f:
                 system = read(f)
             output_file = 'stacked_' + os.path.basename(conf)
-            ll, dd, rr = stack(system, output_file, negf_config)
+            ll, dd, rr, _mult = stack(system, output_file, negf_config)
             out_systems.append(Path.cwd() / output_file)
-            system_infos.append({'atom_number': len(system),
+            system_infos.append({'atom_number': len(system) * _mult,
                                  'atom_index': list(np.array([ll, ll + dd, ll + dd + rr]) * 
-                                                    system.get_number_of_atoms())})
+                                                    system.get_number_of_atoms() * _mult)})
 
         op_out = OPIO({
             "stacked_systems": out_systems,
